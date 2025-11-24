@@ -18,9 +18,9 @@ on:
       pdf_path:
         description: "Path to PDF (relative to repo)"
         required: true
-        default: "input_pdf/BRD_IFRS_December 2024 EN.pdf"
+        default: "input_pdf/BRD_IFRS_December_2024_EN.pdf"
       pages:
-        description: "Pages or ranges, e.g. '71-75' or '71-75 90'"
+        description: "Pages or ranges, e.g. '71-75' or '71-75 90' (leave empty for full PDF)"
         required: false
         default: ""
       output_prefix:
@@ -46,22 +46,34 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache uv environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Run Docling extraction
         run: |
-          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December 2024 EN.pdf' }}"
+          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December_2024_EN.pdf' }}"
           PAGES="${{ github.event.inputs.pages }}"
           PREFIX="${{ github.event.inputs.output_prefix || 'ci_run' }}"
 
           echo "PDF Path: $PDF_PATH"
-          echo "Pages: $PAGES"
+          echo "Pages: '$PAGES'"
           echo "Output Prefix: $PREFIX"
 
           if [ -z "$PAGES" ]; then
+            # full document
             uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --output-prefix "$PREFIX"
           else
+            # specific pages
             uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --pages $PAGES --output-prefix "$PREFIX"
           fi
 
@@ -72,13 +84,15 @@ jobs:
 
           echo "Looking for markdown file: $MD_FILE"
 
+          # If pages mode wasn't used, fall back to PREFIX.md
           if [ ! -f "$MD_FILE" ]; then
             MD_FILE="outputs/outputs_md/${PREFIX}.md"
           fi
 
           echo "Converting markdown to Excel from: $MD_FILE"
 
-          uv run python scripts/save_output_excel.py "$MD_FILE" --output-name "${PREFIX}_tables.xlsx"
+          # save_output_excel.py uses --output-xlsx
+          uv run python scripts/save_output_excel.py "$MD_FILE" --output-xlsx "${PREFIX}_tables.xlsx"
 
       - name: Upload markdown outputs
         uses: actions/upload-artifact@v4
