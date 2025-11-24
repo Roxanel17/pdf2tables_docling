@@ -56,7 +56,7 @@ jobs:
 
       - name: Run Docling extraction
         run: |
-          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December_2024_EN.pdf' }}"
+          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/page_71.pdf' }}"
           PAGES="${{ github.event.inputs.pages }}"
           PREFIX="${{ github.event.inputs.output_prefix || 'ci_run_dev' }}"
 
