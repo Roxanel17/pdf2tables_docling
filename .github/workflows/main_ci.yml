@@ -4,25 +4,27 @@
 name: PDF Pipeline
 
 on:
-  # still run on push if you want
   # push:
-  #   branches: [ main, dev-test ]
+  #   branches:
+  #     - main
+  #     - dev-test
   # pull_request:
-  #   branches: [ main, dev-test ]
+  #   branches:
+  #     - main
+  #     - dev-test
 
-  # 👉 manual trigger with arguments
   workflow_dispatch:
     inputs:
       pdf_path:
         description: "Path to PDF (relative to repo)"
         required: true
-        default: "input_pdf/BRD_IFRS_December 2024 EN.pdf"
+        default: "input_pdf/BRD_IFRS_December_2024_EN.pdf"
       pages:
         description: "Pages or ranges, e.g. '71-75' or '71-75 90'"
         required: false
         default: ""
       output_prefix:
-        description: "Output prefix for generated files"
+        description: "Prefix for output files"
         required: false
         default: "ci_run"
 
@@ -44,30 +46,50 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies with uv
+      - name: Install dependencies
         run: uv sync
 
-      - name: Run docling_pages_to_md
+      - name: Run Docling extraction
         run: |
-          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December 2024 EN.pdf' }}"
+          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December_2024_EN.pdf' }}"
           PAGES="${{ github.event.inputs.pages }}"
           PREFIX="${{ github.event.inputs.output_prefix || 'ci_run' }}"
 
-          echo "Using PDF: $PDF_PATH"
-          echo "Pages: '$PAGES'"
-          echo "Output prefix: $PREFIX"
+          echo "PDF Path: $PDF_PATH"
+          echo "Pages: $PAGES"
+          echo "Output Prefix: $PREFIX"
 
           if [ -z "$PAGES" ]; then
-            # no pages provided → full document
             uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --output-prefix "$PREFIX"
           else
-            # pages provided → forward them as-is
             uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --pages $PAGES --output-prefix "$PREFIX"
           fi
+
+      - name: Convert markdown to Excel
+        run: |
+          PREFIX="${{ github.event.inputs.output_prefix || 'ci_run' }}"
+          MD_FILE="outputs/outputs_md/${PREFIX}_pages.md"
+
+          echo "Looking for markdown file: $MD_FILE"
+
+          if [ ! -f "$MD_FILE" ]; then
+            MD_FILE="outputs/outputs_md/${PREFIX}.md"
+          fi
+
+          echo "Converting markdown to Excel from: $MD_FILE"
+
+          uv run python scripts/save_output_excel.py "$MD_FILE" --output-name "${PREFIX}_tables.xlsx"
 
       - name: Upload markdown outputs
         uses: actions/upload-artifact@v4
         with:
           name: markdown_outputs
           path: outputs/outputs_md/
+          if-no-files-found: ignore
+
+      - name: Upload Excel outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel_outputs
+          path: outputs/outputs_excel/
           if-no-files-found: ignore
