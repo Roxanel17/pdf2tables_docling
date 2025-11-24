@@ -13,7 +13,7 @@ on:
       pdf_path:
         description: "Path to PDF (relative to repo)"
         required: true
-        default: "input_pdf/BRD_IFRS_December 2024 EN.pdf"
+        default: "input_pdf/page_71.pdf"
       pages:
         description: "Pages or ranges, e.g. '71-75' or '71-75 90' (leave empty for full PDF)"
         required: false
