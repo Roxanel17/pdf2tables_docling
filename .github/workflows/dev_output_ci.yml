@@ -1,0 +1,97 @@
+name: PDF Pipeline Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      pdf_path:
+        description: "Path to PDF (relative to repo)"
+        required: true
+        default: "input_pdf/page_71.pdf"
+      pages:
+        description: "Pages or ranges, e.g. '71-75' or '71-75 90' (leave empty for full PDF)"
+        required: false
+        default: ""
+      output_prefix:
+        description: "Prefix for output files"
+        required: false
+        default: "ci_run_dev"
+
+jobs:
+  run-docling:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache uv environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run Docling extraction
+        run: |
+          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/page_71.pdf' }}"
+          PAGES="${{ github.event.inputs.pages }}"
+          PREFIX="${{ github.event.inputs.output_prefix || 'ci_run_dev' }}"
+
+          echo "PDF Path: $PDF_PATH"
+          echo "Pages: '$PAGES'"
+          echo "Output Prefix: $PREFIX"
+
+          if [ -z "$PAGES" ]; then
+            # full document
+            uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --output-prefix "$PREFIX"
+          else
+            # specific pages
+            uv run python scripts/docling_pages_to_md.py "$PDF_PATH" --pages $PAGES --output-prefix "$PREFIX"
+          fi
+
+      - name: Convert markdown to Excel
+        run: |
+          PREFIX="${{ github.event.inputs.output_prefix || 'ci_run_dev' }}"
+          MD_FILE="outputs/outputs_md/${PREFIX}_pages.md"
+
+          echo "Looking for markdown file: $MD_FILE"
+
+          # If pages mode wasn't used, fall back to PREFIX.md
+          if [ ! -f "$MD_FILE" ]; then
+            MD_FILE="outputs/outputs_md/${PREFIX}.md"
+          fi
+
+          echo "Converting markdown to Excel from: $MD_FILE"
+
+          uv run python scripts/save_output_excel.py "$MD_FILE" --output-xlsx "${PREFIX}_tables.xlsx"
+
+      - name: Upload markdown outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown_outputs_dev
+          path: outputs/outputs_md/
+          if-no-files-found: ignore
+
+      - name: Upload Excel outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel_outputs_dev
+          path: outputs/outputs_excel/
+          if-no-files-found: ignore
+          
