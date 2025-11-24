@@ -1,12 +1,12 @@
 name: PDF Pipeline Dev
 
 on:
-  push:
-    branches:
-      - dev-output
-  pull_request:
-    branches:
-      - dev-output
+  # push:
+  #   branches:
+  #     - dev-output
+  # pull_request:
+  #   branches:
+  #     - dev-output
 
   workflow_dispatch:
     inputs:
