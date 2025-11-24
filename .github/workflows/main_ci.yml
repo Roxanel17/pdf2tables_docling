@@ -18,7 +18,7 @@ on:
       pdf_path:
         description: "Path to PDF (relative to repo)"
         required: true
-        default: "input_pdf/BRD_IFRS_December_2024_EN.pdf"
+        default: "input_pdf/BRD_IFRS_December 2024 EN.pdf"
       pages:
         description: "Pages or ranges, e.g. '71-75' or '71-75 90' (leave empty for full PDF)"
         required: false
@@ -61,7 +61,7 @@ jobs:
 
       - name: Run Docling extraction
         run: |
-          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December_2024_EN.pdf' }}"
+          PDF_PATH="${{ github.event.inputs.pdf_path || 'input_pdf/BRD_IFRS_December 2024 EN.pdf' }}"
           PAGES="${{ github.event.inputs.pages }}"
           PREFIX="${{ github.event.inputs.output_prefix || 'ci_run' }}"
 
